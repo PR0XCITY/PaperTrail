@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+groq
+chromadb
+sentence-transformers
+pymupdf
+langchain-text-splitters
+python-dotenv
+rank_bm25
+ragas
+datasets
+langchain-groq
+langchain-openai
