@@ -1,6 +1,6 @@
-import fitz
-
 def extract_text_from_pdf(fp):
+    import fitz  # lazy import — PyMuPDF (~15 MB) only loaded when needed
+
     d = fitz.open(fp)
 
     p = []

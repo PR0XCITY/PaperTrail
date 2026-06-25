@@ -1,10 +1,18 @@
-from groq import Groq
-
 from app.config import GROQ_API_KEY
 
-cl = Groq(
-    api_key=GROQ_API_KEY
-)
+# ── Lazy singleton ────────────────────────────────────────────────────────────
+# The Groq client is only created when the first LLM call is made.
+
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        from groq import Groq
+        _client = Groq(api_key=GROQ_API_KEY)
+    return _client
+
 
 def _build_prompt(q, ch):
     ctx = "\n\n".join([x["text"] for x in ch])
@@ -20,7 +28,7 @@ If answer does not exist, reply NOT FOUND.
 """
 
 def answer(q, ch):
-    r = cl.chat.completions.create(
+    r = _get_client().chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": _build_prompt(q, ch)}],
         temperature=0.1
@@ -29,7 +37,7 @@ def answer(q, ch):
 
 def answer_stream(q, ch):
     """Yields token strings from Groq streaming API."""
-    stream = cl.chat.completions.create(
+    stream = _get_client().chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": _build_prompt(q, ch)}],
         temperature=0.1,
@@ -38,4 +46,4 @@ def answer_stream(q, ch):
     for chunk in stream:
         delta = chunk.choices[0].delta.content
         if delta:
-            yield delta
+            yield delta

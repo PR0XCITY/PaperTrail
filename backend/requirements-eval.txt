@@ -1,0 +1,7 @@
+# Eval-only dependencies (not needed for production deployment)
+# Install with: pip install -r requirements-eval.txt
+-r requirements.txt
+ragas
+datasets
+langchain-groq
+langchain-openai

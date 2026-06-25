@@ -1,27 +1,44 @@
 import hashlib
 
-from sentence_transformers import SentenceTransformer
-import chromadb
-
 from app.config import EMBED_MODEL
 from app.config import CHROMA_DIR
 
-m = SentenceTransformer(EMBED_MODEL)
+# ── Lazy singletons ──────────────────────────────────────────────────────────
+# These are NOT loaded at import time.  The model (~230 MB) and ChromaDB
+# client (~50 MB) are only instantiated when the first request needs them.
 
-c = chromadb.PersistentClient(
-    path=CHROMA_DIR
-)
+_model = None
+_chroma = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer(EMBED_MODEL)
+    return _model
+
+
+def _get_chroma():
+    global _chroma
+    if _chroma is None:
+        import chromadb
+        _chroma = chromadb.PersistentClient(path=CHROMA_DIR)
+    return _chroma
+
 
 def emb(t):
-    return m.encode(
+    return _get_model().encode(
         t,
         show_progress_bar=False
     ).tolist()
 
+
 def get_col(n):
-    return c.get_or_create_collection(
+    return _get_chroma().get_or_create_collection(
         name=n
     )
+
 
 def _chunk_id(collection: str, text: str, source: str, page: int, chunk_index: int) -> str:
     """

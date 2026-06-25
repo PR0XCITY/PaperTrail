@@ -8,7 +8,3 @@ pymupdf
 langchain-text-splitters
 python-dotenv
 rank_bm25
-ragas
-datasets
-langchain-groq
-langchain-openai

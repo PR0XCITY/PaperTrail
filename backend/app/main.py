@@ -6,12 +6,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from app.ingestion.parser import extract_text_from_pdf
-from app.ingestion.chunker import chunk_pages
-from app.ingestion.embedder import add_chunks, query_collection
-from app.generation.llm import answer_stream
-from app.retrieval.bm25_store import build_bm25_index, search_bm25
-from app.retrieval.fusion import reciprocal_rank_fusion
+# ── IMPORTANT: No heavy imports at module level ──────────────────────────────
+# All AI/ML imports (sentence_transformers, chromadb, fitz, langchain, groq)
+# are deferred to first request.  This lets the server bind to $PORT instantly
+# on Render's 512 MB free tier without triggering the OOM killer.
 
 app = FastAPI(title="PaperTrail API", version="1.0.0")
 
@@ -35,6 +33,12 @@ def health():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
+    # Lazy imports — only loaded on first upload request
+    from app.ingestion.parser import extract_text_from_pdf
+    from app.ingestion.chunker import chunk_pages
+    from app.ingestion.embedder import add_chunks
+    from app.retrieval.bm25_store import build_bm25_index
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -69,6 +73,12 @@ async def upload(file: UploadFile = File(...)):
 
 @app.get("/query")
 def query(q: str, collection: str = COLLECTION_NAME):
+    # Lazy imports — only loaded on first query request
+    from app.ingestion.embedder import query_collection
+    from app.generation.llm import answer_stream
+    from app.retrieval.bm25_store import search_bm25
+    from app.retrieval.fusion import reciprocal_rank_fusion
+
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query string 'q' cannot be empty.")
 
