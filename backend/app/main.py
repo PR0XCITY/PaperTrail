@@ -16,12 +16,7 @@ app = FastAPI(title="PaperTrail API", version="1.0.0")
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://*.vercel.app",        # covers all Vercel preview URLs
-        "https://papertrail.vercel.app", # update with your actual URL after deploy
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

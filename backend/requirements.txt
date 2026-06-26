@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-python-multipart
+python-multipart==0.0.9
 groq
 chromadb
 sentence-transformers
