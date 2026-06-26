@@ -33,8 +33,7 @@ export default function Message({
       
       <div className="flex flex-col gap-3 max-w-[90%]">
         <div className="bg-surface-container text-on-surface px-5 py-4 rounded-lg rounded-tl-sm border border-outline-variant shadow-sm markdown-content text-body-base font-body-base text-on-surface-variant leading-relaxed">
-          <ReactMarkdown>{content || "\u00a0"}</ReactMarkdown>
-          {streaming && <span className="inline-block w-2 h-4 bg-secondary ml-1 align-middle cursor-blink"></span>}
+          <ReactMarkdown>{content + (streaming ? " ▍" : "")}</ReactMarkdown>
         </div>
 
         {/* Citations */}

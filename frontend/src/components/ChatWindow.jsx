@@ -124,7 +124,7 @@ export default function ChatWindow({
         <div className="w-full max-w-main_max_width relative">
           
           <div className="bg-surface-container border border-outline-variant rounded-lg p-2 flex items-end shadow-lg focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/50 transition-all">
-            <button className="p-2 text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0" disabled={!canSend}>
+            <button className="w-10 h-10 flex items-center justify-center text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0" disabled={!canSend}>
               <span className="material-symbols-outlined">attach_file</span>
             </button>
             <textarea
@@ -138,7 +138,7 @@ export default function ChatWindow({
               disabled={streaming || !canSend}
             />
             <button
-              className="p-2 bg-secondary text-on-secondary hover:bg-secondary-container transition-colors rounded-lg flex-shrink-0 ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-10 h-10 flex items-center justify-center bg-secondary text-on-secondary hover:bg-secondary-container transition-colors rounded-lg flex-shrink-0 ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => sendMessage()}
               disabled={streaming || !inputText.trim() || !canSend}
             >
