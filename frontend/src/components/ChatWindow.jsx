@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { streamQuery } from "../api/client";
+import { streamQuery, uploadPDF } from "../api/client";
 import Message from "./Message";
 
 export default function ChatWindow({
@@ -8,11 +8,30 @@ export default function ChatWindow({
   searchAll,
   messages,
   onMessagesChange,
+  onUploadSuccess,
 }) {
   const [inputText, setInputText] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const controllerRef = useRef(null);
   const bottomRef     = useRef(null);
+  const fileInputRef  = useRef(null);
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const result = await uploadPDF(file, () => {});
+      if (onUploadSuccess) onUploadSuccess(result);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -98,7 +117,7 @@ export default function ChatWindow({
               <p className="text-body-base font-body-base">
                 {canSend
                   ? "Ask anything about the selected document."
-                  : "Select a document from the sidebar to begin."}
+                  : "Upload a document to begin."}
               </p>
             </div>
           )}
@@ -124,12 +143,23 @@ export default function ChatWindow({
         <div className="w-full max-w-main_max_width relative">
           
           <div className="bg-surface-container border border-outline-variant rounded-lg p-2 flex items-end shadow-lg focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/50 transition-all">
-            <button className="w-10 h-10 flex items-center justify-center text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0" disabled={!canSend}>
-              <span className="material-symbols-outlined">attach_file</span>
+            <button 
+              className="w-10 h-10 flex items-center justify-center text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <span className="material-symbols-outlined">{uploading ? "hourglass_empty" : "attach_file"}</span>
             </button>
+            <input 
+              type="file" 
+              accept=".pdf" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              className="hidden" 
+            />
             <textarea
               className="w-full bg-transparent border-none text-on-surface text-body-base font-body-base placeholder:text-outline-variant resize-none focus:ring-0 focus:outline-none max-h-32 py-2 px-2"
-              placeholder={canSend ? "Ask a follow-up question..." : "Select a PDF first…"}
+              placeholder={canSend ? "Ask a follow-up question..." : "Upload a PDF first…"}
               rows={1}
               style={{ minHeight: "44px" }}
               value={inputText}

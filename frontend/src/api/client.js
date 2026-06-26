@@ -71,6 +71,16 @@ export async function deleteDocument(documentId) {
   return res.json();
 }
 
+/**
+ * Delete a document without awaiting, using keepalive so it works on page unload.
+ */
+export function deleteDocumentKeepAlive(documentId) {
+  fetch(`${BASE}/documents/${documentId}`, {
+    method: "DELETE",
+    keepalive: true
+  }).catch(() => {});
+}
+
 // ── Streaming Query ───────────────────────────────────────────────────────────
 
 /**

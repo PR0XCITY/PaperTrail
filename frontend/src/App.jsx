@@ -3,7 +3,7 @@ import FileUploader from "./components/FileUploader";
 import ChatWindow from "./components/ChatWindow";
 import DocumentList from "./components/DocumentList";
 import { startKeepAlive } from "./utils/keepAlive";
-import { listDocuments } from "./api/client";
+import { deleteDocumentKeepAlive } from "./api/client";
 
 export default function App() {
   const [documents, setDocuments] = useState([]);
@@ -24,15 +24,22 @@ export default function App() {
 
   useEffect(() => {
     startKeepAlive();
-    listDocuments()
-      .then(({ documents: docs }) => {
-        if (docs.length > 0) {
-          setDocuments(docs);
-          setActiveDocumentId(docs[0].document_id);
-        }
-      })
-      .catch(() => {});
   }, []);
+
+  // Cleanup session documents on unload
+  useEffect(() => {
+    const handleUnload = () => {
+      documents.forEach(doc => {
+        deleteDocumentKeepAlive(doc.document_id);
+      });
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+    };
+  }, [documents]);
 
   function handleUploadSuccess(result) {
     const newDoc = {
@@ -118,23 +125,14 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col ml-0 md:ml-[280px] relative w-full h-full bg-background">
-          {canChat ? (
-            <ChatWindow
-              activeDocumentId={searchAll ? null : activeDocumentId}
-              sessionId={sessionId}
-              searchAll={searchAll}
-              messages={getMessages(sessionKey)}
-              onMessagesChange={(updater) => setMessages(sessionKey, updater)}
-            />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-10 text-on-surface-variant text-center">
-              <span className="material-symbols-outlined text-[48px] opacity-30 mb-4">folder_open</span>
-              <h2 className="text-headline-md font-headline-md text-on-surface mb-2">No document selected</h2>
-              <p className="text-body-base max-w-[340px]">
-                Upload a PDF in the sidebar to start asking questions about it.
-              </p>
-            </div>
-          )}
+          <ChatWindow
+            activeDocumentId={searchAll ? null : activeDocumentId}
+            sessionId={sessionId}
+            searchAll={searchAll}
+            messages={getMessages(sessionKey)}
+            onMessagesChange={(updater) => setMessages(sessionKey, updater)}
+            onUploadSuccess={handleUploadSuccess}
+          />
         </main>
       </div>
     </div>
