@@ -1,22 +1,15 @@
 """
-BM25 index builder and searcher.
+BM25 index — single global index file, filtered by document_id at query time.
 
-Each collection gets a pickle file at ./bm25_store/<collection>.pkl
-containing {"corpus": [str], "metadata": [dict], "index": BM25Okapi}.
-
-Uploading multiple PDFs into the same collection is safe: the new chunks
-are APPENDED to the existing corpus before rebuilding the index, so no
-document's BM25 data is lost. Re-uploading the same file is idempotent
-because chunks are deduplicated by (source, page, chunk_index) key.
+All chunks from all uploaded PDFs are stored in one pickle file.
+document_id metadata on each chunk enables per-document filtering.
 """
-
 import os
 import pickle
 import re
 
 from rank_bm25 import BM25Okapi
-
-BM25_DIR = "./bm25_store"
+from app.config import BM25_DIR, BM25_INDEX_PATH
 
 
 def _tokenize(text: str) -> list[str]:
@@ -24,97 +17,111 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"\w+", text.lower())
 
 
-def _index_path(collection_name: str) -> str:
-    return os.path.join(BM25_DIR, f"{collection_name}.pkl")
-
-
 def _chunk_key(metadata: dict) -> str:
-    """Stable dedup key matching the one in embedder.py."""
-    return f"{metadata.get('source','')}::{metadata.get('page',0)}::{metadata.get('chunk_index',0)}"
+    """Stable dedup key: document_id + page + chunk_index."""
+    return (
+        f"{metadata.get('document_id', '')}"
+        f"::{metadata.get('page', 0)}"
+        f"::{metadata.get('chunk_index', 0)}"
+    )
 
 
-def build_bm25_index(collection_name: str, chunks: list[dict]) -> None:
-    """
-    Append new chunks to the BM25 index for a collection, then rebuild.
+def _load_index() -> tuple[list[str], list[dict], BM25Okapi | None]:
+    """Load the existing BM25 index from disk, or return empty structures."""
+    if not os.path.exists(BM25_INDEX_PATH):
+        return [], [], None
+    with open(BM25_INDEX_PATH, "rb") as f:
+        payload = pickle.load(f)
+    return payload["corpus"], payload["metadata"], payload["index"]
 
-    Existing chunks from other PDFs are preserved. Duplicate chunks
-    (same source + page + chunk_index) are replaced with the new version.
 
-    Parameters
-    ----------
-    collection_name : str
-    chunks : list of {"text": str, "metadata": dict}
-    """
+def _save_index(corpus: list[str], metadata: list[dict]) -> None:
     os.makedirs(BM25_DIR, exist_ok=True)
+    tokenized = [_tokenize(t) for t in corpus]
+    index = BM25Okapi(tokenized)
+    with open(BM25_INDEX_PATH, "wb") as f:
+        pickle.dump({"corpus": corpus, "metadata": metadata, "index": index}, f)
 
-    path = _index_path(collection_name)
 
-    # Load existing corpus if present
-    existing_corpus: list[str] = []
-    existing_meta: list[dict] = []
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            payload = pickle.load(f)
-        existing_corpus = payload.get("corpus", [])
-        existing_meta = payload.get("metadata", [])
+# ── Write ─────────────────────────────────────────────────────────────────────
 
-    # Build a dict of existing chunks keyed by dedup key
+def build_bm25_index(chunks: list[dict]) -> None:
+    """
+    Append new chunks to the global BM25 index, then rebuild.
+
+    Existing chunks from other PDFs are preserved.
+    Duplicate chunks (same document_id + page + chunk_index) are replaced.
+    """
+    existing_corpus, existing_meta, _ = _load_index()
+
     merged: dict[str, tuple[str, dict]] = {
         _chunk_key(md): (txt, md)
         for txt, md in zip(existing_corpus, existing_meta)
     }
 
-    # Upsert new chunks (overwrites same-keyed entries)
     for chunk in chunks:
         key = _chunk_key(chunk["metadata"])
         merged[key] = (chunk["text"], chunk["metadata"])
 
-    # Reconstruct flat lists
     all_texts = [v[0] for v in merged.values()]
-    all_meta  = [v[1] for v in merged.values()]
-
-    tokenized = [_tokenize(t) for t in all_texts]
-    index = BM25Okapi(tokenized)
-
-    payload = {"corpus": all_texts, "metadata": all_meta, "index": index}
-    with open(path, "wb") as f:
-        pickle.dump(payload, f)
+    all_meta = [v[1] for v in merged.values()]
+    _save_index(all_texts, all_meta)
 
 
-def search_bm25(collection_name: str, query: str, k: int = 10) -> list[dict]:
+def delete_document_bm25(document_id: str) -> int:
     """
-    Return top-k chunks by BM25 score.
+    Remove all chunks belonging to document_id from the BM25 index.
+    Returns the number of removed chunks.
+    """
+    corpus, meta, _ = _load_index()
+    pairs = [(t, m) for t, m in zip(corpus, meta) if m.get("document_id") != document_id]
+    removed = len(corpus) - len(pairs)
 
-    Parameters
-    ----------
-    collection_name : str
-    query : str
-    k : int
+    if not pairs:
+        if os.path.exists(BM25_INDEX_PATH):
+            os.remove(BM25_INDEX_PATH)
+        return removed
+
+    texts, metas = zip(*pairs)
+    _save_index(list(texts), list(metas))
+    return removed
+
+
+# ── Read ──────────────────────────────────────────────────────────────────────
+
+def search_bm25(
+    query: str,
+    k: int = 20,
+    document_id: str = None,
+) -> list[dict]:
+    """
+    Return top-k chunks by BM25 score, optionally filtered to one document.
 
     Returns
     -------
-    list of {"text": str, "metadata": dict}
+    list of {"text": str, "metadata": dict, "bm25_score": float}
         Sorted by descending BM25 score.
     """
-    path = _index_path(collection_name)
-    if not os.path.exists(path):
+    corpus, metadatas, index = _load_index()
+    if index is None:
         return []
-
-    with open(path, "rb") as f:
-        payload = pickle.load(f)
-
-    index: BM25Okapi = payload["index"]
-    corpus: list[str] = payload["corpus"]
-    metadatas: list[dict] = payload["metadata"]
 
     tokens = _tokenize(query)
     scores = index.get_scores(tokens)
 
-    # Pair with indices, sort descending
     ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
 
     results = []
-    for idx, _score in ranked[:k]:
-        results.append({"text": corpus[idx], "metadata": metadatas[idx]})
+    for idx, score in ranked:
+        md = metadatas[idx]
+        if document_id and md.get("document_id") != document_id:
+            continue
+        results.append({
+            "text": corpus[idx],
+            "metadata": md,
+            "bm25_score": float(score),
+        })
+        if len(results) >= k:
+            break
 
     return results

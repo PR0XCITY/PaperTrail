@@ -2,65 +2,98 @@ import { useState, useRef, useEffect } from "react";
 import { streamQuery } from "../api/client";
 import Message from "./Message";
 
-export default function ChatWindow() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
+/**
+ * Chat window — messages are owned by App.jsx (via props) so history
+ * persists when the user switches between documents.
+ *
+ * Props:
+ *   activeDocumentId  — selected document UUID (null = search all)
+ *   sessionId         — conversation UUID for this document/context
+ *   searchAll         — bool: ignore document_id filter
+ *   messages          — Message[] owned by App.jsx
+ *   onMessagesChange  — (updater: fn | array) => void
+ */
+export default function ChatWindow({
+  activeDocumentId,
+  sessionId,
+  searchAll,
+  messages,
+  onMessagesChange,
+}) {
+  const [inputText, setInputText] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const esRef = useRef(null);
-  const bottomRef = useRef(null);
+  const controllerRef = useRef(null);
+  const bottomRef     = useRef(null);
 
-  // Auto-scroll to latest message
+  // Auto-scroll whenever messages update
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /** Append a token to the last assistant message */
+  // ── Mutators (operate on parent-owned messages array) ─────────────────────
+
   function appendToken(token) {
-    setMessages((prev) => {
+    onMessagesChange((prev) => {
       const last = prev[prev.length - 1];
-      if (last && last.role === "assistant") {
+      if (last?.role === "assistant") {
         return [...prev.slice(0, -1), { ...last, content: last.content + token }];
       }
-      return [...prev, { role: "assistant", content: token, sources: [] }];
+      return [...prev, { role: "assistant", content: token, sources: [], followups: [] }];
     });
   }
 
-  /** Attach sources to the last assistant message */
   function attachSources(sources) {
-    setMessages((prev) => {
+    onMessagesChange((prev) => {
       const last = prev[prev.length - 1];
-      if (last && last.role === "assistant") {
+      if (last?.role === "assistant") {
         return [...prev.slice(0, -1), { ...last, sources }];
       }
       return prev;
     });
   }
 
-  function sendMessage() {
-    const q = input.trim();
+  function attachFollowups(followups) {
+    onMessagesChange((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.role === "assistant") {
+        return [...prev.slice(0, -1), { ...last, followups }];
+      }
+      return prev;
+    });
+  }
+
+  // ── Send ──────────────────────────────────────────────────────────────────
+
+  function sendMessage(text) {
+    const q = (text ?? inputText).trim();
     if (!q || streaming) return;
 
-    // Close any existing stream
-    esRef.current?.close();
+    // Cancel any in-flight stream
+    controllerRef.current?.abort();
 
-    // Add user message
-    setMessages((prev) => [...prev, { role: "user", content: q }]);
-    setInput("");
+    // Optimistic UI: append user + empty assistant bubble
+    onMessagesChange((prev) => [
+      ...prev,
+      { role: "user",      content: q,  sources: [], followups: [] },
+      { role: "assistant", content: "", sources: [], followups: [] },
+    ]);
+    setInputText("");
     setStreaming(true);
 
-    // Seed an empty assistant bubble
-    setMessages((prev) => [...prev, { role: "assistant", content: "", sources: [] }]);
-
-    esRef.current = streamQuery(
-      q,
-      (sources) => attachSources(sources),   // onSources
-      (token) => appendToken(token),          // onToken
-      () => setStreaming(false),              // onDone
-      (err) => {                             // onError
+    controllerRef.current = streamQuery({
+      question:    q,
+      documentId:  activeDocumentId,
+      sessionId,
+      searchAll,
+      onSources:   attachSources,
+      onToken:     appendToken,
+      onFollowups: attachFollowups,
+      onDone:      () => setStreaming(false),
+      onError:     (err) => {
         appendToken(`\n\n*Error: ${err.message}*`);
         setStreaming(false);
-      }
-    );
+      },
+    });
   }
 
   function handleKeyDown(e) {
@@ -70,11 +103,19 @@ export default function ChatWindow() {
     }
   }
 
+  const canSend = !!activeDocumentId || searchAll;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="chat-window">
       <div className="messages">
         {messages.length === 0 && (
-          <p className="empty-hint">Ask anything about your uploaded PDF.</p>
+          <p className="empty-hint">
+            {canSend
+              ? "Ask anything about the selected document."
+              : "Select a document from the sidebar to begin."}
+          </p>
         )}
 
         {messages.map((msg, i) => (
@@ -83,7 +124,9 @@ export default function ChatWindow() {
             role={msg.role}
             content={msg.content}
             sources={msg.sources || []}
+            followups={msg.followups || []}
             streaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
+            onFollowupSelect={(q) => sendMessage(q)}
           />
         ))}
 
@@ -94,18 +137,18 @@ export default function ChatWindow() {
         <textarea
           className="chat-input"
           id="chat-input"
-          placeholder="Ask a question about your PDF…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          placeholder={canSend ? "Ask a question about your PDF…" : "Select a PDF first…"}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={streaming}
+          disabled={streaming || !canSend}
           rows={2}
         />
         <button
           id="send-btn"
           className="send-btn"
-          onClick={sendMessage}
-          disabled={streaming || !input.trim()}
+          onClick={() => sendMessage()}
+          disabled={streaming || !inputText.trim() || !canSend}
         >
           {streaming ? "…" : "Send"}
         </button>

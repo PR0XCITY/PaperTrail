@@ -1,22 +1,22 @@
+"""
+Embedder — vector embeddings via sentence-transformers + ChromaDB persistence.
+
+All heavy imports are lazy: nothing loads at import time.
+Cache dirs are redirected to /tmp so Render's ephemeral FS works.
+"""
 import os
 import hashlib
 
-# Set cache directories before any model-related imports so that
-# sentence-transformers and HuggingFace write to /tmp (writable on Render free tier)
-# and nothing is downloaded at import time.
 os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", "/tmp/st_cache")
 os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/hf_cache")
 
-from app.config import EMBED_MODEL
-from app.config import CHROMA_DIR
-
-# ── Lazy singletons ──────────────────────────────────────────────────────────
-# These are NOT loaded at import time.  The model (~230 MB) and ChromaDB
-# client (~50 MB) are only instantiated when the first request needs them.
+from app.config import EMBED_MODEL, CHROMA_DIR, CHROMA_COLLECTION
 
 _model = None
 _client = None
 
+
+# ── Singletons ────────────────────────────────────────────────────────────────
 
 def get_model():
     global _model
@@ -36,65 +36,104 @@ def get_client():
     return _client
 
 
-def emb(t):
-    return get_model().encode(
-        t,
-        show_progress_bar=False
-    ).tolist()
+# ── Public embedding API ──────────────────────────────────────────────────────
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a list of strings. Returns a list of float vectors."""
+    return get_model().encode(texts, show_progress_bar=False).tolist()
 
 
-def get_col(n):
-    return get_client().get_or_create_collection(
-        name=n
-    )
+# ── Collection helper ─────────────────────────────────────────────────────────
+
+def get_col(name: str = None):
+    return get_client().get_or_create_collection(name=name or CHROMA_COLLECTION)
 
 
-def _chunk_id(collection: str, text: str, source: str, page: int, chunk_index: int) -> str:
-    """
-    Stable, unique ID derived from content + position.
-    Using a hash means re-uploading the same file is idempotent (upsert),
-    and different files never collide even in the same collection.
-    """
-    key = f"{source}::{page}::{chunk_index}::{text[:64]}"
+# ── Stable chunk ID ───────────────────────────────────────────────────────────
+
+def _chunk_id(document_id: str, text: str, page: int, chunk_index: int) -> str:
+    key = f"{document_id}::{page}::{chunk_index}::{text[:64]}"
     return hashlib.sha256(key.encode()).hexdigest()[:32]
 
-def add_chunks(n, ch):
-    col = get_col(n)
 
-    tx = [x["text"] for x in ch]
-    em = emb(tx)
-    md = [x["metadata"] for x in ch]
+# ── Write ─────────────────────────────────────────────────────────────────────
+
+def add_chunks(chunks: list[dict], collection_name: str = None) -> None:
+    """
+    Upsert chunks into ChromaDB.
+    Re-uploading the same document is idempotent (same IDs → upsert replaces).
+    """
+    col = get_col(collection_name)
+
+    texts = [c["text"] for c in chunks]
+    embeddings = embed_texts(texts)
+    metadatas = [c["metadata"] for c in chunks]
 
     ids = [
         _chunk_id(
-            n,
-            x["text"],
-            x["metadata"].get("source", ""),
-            x["metadata"].get("page", 0),
-            x["metadata"].get("chunk_index", i),
+            c["metadata"].get("document_id", ""),
+            c["text"],
+            c["metadata"].get("page", 0),
+            c["metadata"].get("chunk_index", i),
         )
-        for i, x in enumerate(ch)
+        for i, c in enumerate(chunks)
     ]
 
-    # upsert: safe to call multiple times — re-uploading the same file
-    # is idempotent, and different files never clobber each other.
-    col.upsert(
-        ids=ids,
-        embeddings=em,
-        documents=tx,
-        metadatas=md
-    )
+    col.upsert(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
-def query_collection(n, q, k=3):
-    col = get_col(n)
 
-    qe = emb([q])[0]
+# ── Read ──────────────────────────────────────────────────────────────────────
 
-    # Clamp k to the number of documents actually in the collection
+def query_collection(
+    query: str,
+    k: int = 20,
+    document_id: str = None,
+    collection_name: str = None,
+) -> dict:
+    """
+    Vector search with optional document_id filter.
+
+    Parameters
+    ----------
+    query         : query text
+    k             : number of results to return (clamped to collection size)
+    document_id   : if set, only return chunks from this document
+    collection_name: defaults to CHROMA_COLLECTION
+
+    Returns
+    -------
+    ChromaDB query result dict with "documents", "metadatas", "distances" keys.
+    """
+    col = get_col(collection_name)
+
+    query_embedding = embed_texts([query])[0]
+
     total = col.count()
-    k = min(k, total) if total > 0 else k
+    if total == 0:
+        return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
 
-    return col.query(
-        query_embeddings=[qe],
-        n_results=k
+    actual_k = min(k, total)
+    kwargs: dict = dict(
+        query_embeddings=[query_embedding],
+        n_results=actual_k,
+        include=["documents", "metadatas", "distances"],
     )
+    if document_id:
+        kwargs["where"] = {"document_id": document_id}
+
+    return col.query(**kwargs)
+
+
+# ── Delete ────────────────────────────────────────────────────────────────────
+
+def delete_document(document_id: str, collection_name: str = None) -> int:
+    """
+    Remove all chunks belonging to document_id from ChromaDB.
+    Returns the number of deleted chunks.
+    """
+    col = get_col(collection_name)
+    results = col.get(where={"document_id": document_id}, include=[])
+    ids = results.get("ids", [])
+    if ids:
+        col.delete(ids=ids)
+    return len(ids)

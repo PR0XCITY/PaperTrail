@@ -1,10 +1,13 @@
 import { useState, useRef } from "react";
 import { uploadPDF } from "../api/client";
 
+/**
+ * PDF upload button with progress bar and status feedback.
+ * On success, calls onUploadSuccess({document_id, name, pages, chunks}).
+ */
 export default function FileUploader({ onUploadSuccess }) {
   const [status, setStatus] = useState("idle"); // idle | uploading | done | error
   const [progress, setProgress] = useState(0);
-  const [info, setInfo] = useState(null);
   const [error, setError] = useState("");
   const fileRef = useRef(null);
 
@@ -12,20 +15,17 @@ export default function FileUploader({ onUploadSuccess }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const filename = file.name;
     setStatus("uploading");
     setProgress(0);
     setError("");
-    setInfo(null);
 
     try {
       const result = await uploadPDF(file, (pct) => setProgress(pct));
-      setInfo(result);
       setStatus("done");
-      // Pass result AND filename so parent can track indexed files
-      onUploadSuccess(result, filename);
-      // Reset input so same file can be re-uploaded
+      onUploadSuccess(result);
       if (fileRef.current) fileRef.current.value = "";
+      // Auto-reset after 3 s so user can upload another
+      setTimeout(() => setStatus("idle"), 3000);
     } catch (err) {
       setError(err.message);
       setStatus("error");
@@ -36,9 +36,13 @@ export default function FileUploader({ onUploadSuccess }) {
     <div className="uploader">
       <h2 className="uploader-title">Upload PDF</h2>
 
-      <label className="upload-btn" htmlFor="pdf-input">
-        {status === "uploading" ? `Uploading… ${progress}%` : "⬆ Choose PDF"}
+      <label
+        className={`upload-btn ${status === "uploading" ? "upload-btn--busy" : ""}`}
+        htmlFor="pdf-input"
+      >
+        {status === "uploading" ? `Indexing… ${progress}%` : "⬆ Choose PDF"}
       </label>
+
       <input
         id="pdf-input"
         type="file"
@@ -55,10 +59,8 @@ export default function FileUploader({ onUploadSuccess }) {
         </div>
       )}
 
-      {status === "done" && info && (
-        <p className="upload-success">
-          ✓ {info.pages} page{info.pages !== 1 ? "s" : ""}, {info.chunks} chunks indexed
-        </p>
+      {status === "done" && (
+        <p className="upload-success">✓ Document indexed</p>
       )}
 
       {status === "error" && (

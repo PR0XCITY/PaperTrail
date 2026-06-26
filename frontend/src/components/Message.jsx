@@ -1,16 +1,30 @@
 import ReactMarkdown from "react-markdown";
 
 /**
- * Renders a single chat message bubble.
+ * Single chat message bubble.
  *
  * Props:
- *   role      — "user" | "assistant"
- *   content   — string (markdown supported for assistant)
- *   sources   — Array<{source: string, page: number}> (assistant only)
- *   streaming — bool  (shows blinking cursor when true)
+ *   role            — "user" | "assistant"
+ *   content         — string (markdown for assistant)
+ *   sources         — [{document_id, source, page, section}]
+ *   followups       — string[] suggested follow-up questions
+ *   streaming       — bool (shows blinking cursor)
+ *   onFollowupSelect — (question: string) => void
  */
-export default function Message({ role, content, sources = [], streaming = false }) {
+export default function Message({
+  role,
+  content,
+  sources = [],
+  followups = [],
+  streaming = false,
+  onFollowupSelect,
+}) {
   const isAssistant = role === "assistant";
+
+  function handleCitationClick(s) {
+    const ref = `${s.source} — Page ${s.page}${s.section ? ` (${s.section})` : ""}`;
+    navigator.clipboard?.writeText(ref).catch(() => {});
+  }
 
   return (
     <div className={`message message-${role}`}>
@@ -27,14 +41,47 @@ export default function Message({ role, content, sources = [], streaming = false
         )}
       </div>
 
-      {/* Citation chips — only for assistant, only when sources exist */}
+      {/* Citation chips */}
       {isAssistant && sources.length > 0 && (
         <div className="citations" aria-label="Source citations">
           {sources.map((s, i) => (
-            <span key={i} className="citation-chip" title={s.source}>
-              📄 {s.source} · p.{s.page}
-            </span>
+            <button
+              key={i}
+              className="citation-chip"
+              onClick={() => handleCitationClick(s)}
+              title={
+                `${s.source}` +
+                (s.section ? `\n${s.section}` : "") +
+                `\nClick to copy reference`
+              }
+              aria-label={`Source: ${s.source}, page ${s.page}`}
+            >
+              <span className="citation-icon">📄</span>
+              <span className="citation-page">p.{s.page}</span>
+              {s.section && (
+                <span className="citation-section">{s.section}</span>
+              )}
+            </button>
           ))}
+        </div>
+      )}
+
+      {/* Follow-up chips — only after streaming completes */}
+      {isAssistant && !streaming && followups.length > 0 && (
+        <div className="followups">
+          <span className="followups-label">Suggested questions</span>
+          <div className="followup-chips">
+            {followups.map((q, i) => (
+              <button
+                key={i}
+                className="followup-chip"
+                onClick={() => onFollowupSelect?.(q)}
+                title={q}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
