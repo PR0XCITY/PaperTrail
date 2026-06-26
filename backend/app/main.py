@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 os.environ["SENTENCE_TRANSFORMERS_HOME"] = "/tmp/st_cache"
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/hf_cache"
@@ -330,3 +331,17 @@ def query(req: QueryRequest):
         add_turn(session_id, "assistant", assembled[:1200])
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ── Frontend Static Files ─────────────────────────────────────────────────────
+
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+if os.path.isdir(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        index_path = os.path.join(frontend_dist, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Frontend not built")

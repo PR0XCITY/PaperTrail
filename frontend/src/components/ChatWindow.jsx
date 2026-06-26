@@ -2,17 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { streamQuery } from "../api/client";
 import Message from "./Message";
 
-/**
- * Chat window — messages are owned by App.jsx (via props) so history
- * persists when the user switches between documents.
- *
- * Props:
- *   activeDocumentId  — selected document UUID (null = search all)
- *   sessionId         — conversation UUID for this document/context
- *   searchAll         — bool: ignore document_id filter
- *   messages          — Message[] owned by App.jsx
- *   onMessagesChange  — (updater: fn | array) => void
- */
 export default function ChatWindow({
   activeDocumentId,
   sessionId,
@@ -25,12 +14,9 @@ export default function ChatWindow({
   const controllerRef = useRef(null);
   const bottomRef     = useRef(null);
 
-  // Auto-scroll whenever messages update
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // ── Mutators (operate on parent-owned messages array) ─────────────────────
 
   function appendToken(token) {
     onMessagesChange((prev) => {
@@ -62,16 +48,12 @@ export default function ChatWindow({
     });
   }
 
-  // ── Send ──────────────────────────────────────────────────────────────────
-
   function sendMessage(text) {
     const q = (text ?? inputText).trim();
     if (!q || streaming) return;
 
-    // Cancel any in-flight stream
     controllerRef.current?.abort();
 
-    // Optimistic UI: append user + empty assistant bubble
     onMessagesChange((prev) => [
       ...prev,
       { role: "user",      content: q,  sources: [], followups: [] },
@@ -105,54 +87,69 @@ export default function ChatWindow({
 
   const canSend = !!activeDocumentId || searchAll;
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="chat-window">
-      <div className="messages">
-        {messages.length === 0 && (
-          <p className="empty-hint">
-            {canSend
-              ? "Ask anything about the selected document."
-              : "Select a document from the sidebar to begin."}
-          </p>
-        )}
+    <>
+      {/* Chat History */}
+      <div className="flex-1 overflow-y-auto p-margin_md pb-32 flex flex-col items-center">
+        <div className="w-full max-w-main_max_width flex flex-col gap-8">
+          {messages.length === 0 && (
+            <div className="text-center text-on-surface-variant mt-20">
+              <span className="material-symbols-outlined text-4xl mb-4 opacity-50">forum</span>
+              <p className="text-body-base font-body-base">
+                {canSend
+                  ? "Ask anything about the selected document."
+                  : "Select a document from the sidebar to begin."}
+              </p>
+            </div>
+          )}
 
-        {messages.map((msg, i) => (
-          <Message
-            key={i}
-            role={msg.role}
-            content={msg.content}
-            sources={msg.sources || []}
-            followups={msg.followups || []}
-            streaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
-            onFollowupSelect={(q) => sendMessage(q)}
-          />
-        ))}
+          {messages.map((msg, i) => (
+            <Message
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              sources={msg.sources || []}
+              followups={msg.followups || []}
+              streaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
+              onFollowupSelect={(q) => sendMessage(q)}
+            />
+          ))}
 
-        <div ref={bottomRef} />
+          <div ref={bottomRef} />
+        </div>
       </div>
 
-      <div className="input-row">
-        <textarea
-          className="chat-input"
-          id="chat-input"
-          placeholder={canSend ? "Ask a question about your PDF…" : "Select a PDF first…"}
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={streaming || !canSend}
-          rows={2}
-        />
-        <button
-          id="send-btn"
-          className="send-btn"
-          onClick={() => sendMessage()}
-          disabled={streaming || !inputText.trim() || !canSend}
-        >
-          {streaming ? "…" : "Send"}
-        </button>
+      {/* Chat Input Area */}
+      <div className="absolute bottom-0 left-0 right-0 p-margin_md bg-gradient-to-t from-background via-background to-transparent flex justify-center">
+        <div className="w-full max-w-main_max_width relative">
+          
+          <div className="bg-surface-container border border-outline-variant rounded-lg p-2 flex items-end shadow-lg focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/50 transition-all">
+            <button className="p-2 text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0" disabled={!canSend}>
+              <span className="material-symbols-outlined">attach_file</span>
+            </button>
+            <textarea
+              className="w-full bg-transparent border-none text-on-surface text-body-base font-body-base placeholder:text-outline-variant resize-none focus:ring-0 focus:outline-none max-h-32 py-2 px-2"
+              placeholder={canSend ? "Ask a follow-up question..." : "Select a PDF first…"}
+              rows={1}
+              style={{ minHeight: "44px" }}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={streaming || !canSend}
+            />
+            <button
+              className="p-2 bg-secondary text-on-secondary hover:bg-secondary-container transition-colors rounded-lg flex-shrink-0 ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => sendMessage()}
+              disabled={streaming || !inputText.trim() || !canSend}
+            >
+              <span className="material-symbols-outlined">{streaming ? "hourglass_empty" : "send"}</span>
+            </button>
+          </div>
+          <div className="text-center mt-2">
+            <span className="text-label-mono font-label-mono text-outline-variant text-[10px]">PaperTrail AI uses Llama 3.3. Verify important claims.</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

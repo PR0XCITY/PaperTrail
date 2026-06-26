@@ -21,9 +21,9 @@ _client = None
 def get_model():
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
+        from fastembed import TextEmbedding
         print("Loading embedding model...")
-        _model = SentenceTransformer(EMBED_MODEL)
+        _model = TextEmbedding(model_name=f"sentence-transformers/{EMBED_MODEL}")
         print("Embedding model loaded")
     return _model
 
@@ -40,7 +40,7 @@ def get_client():
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed a list of strings. Returns a list of float vectors."""
-    return get_model().encode(texts, show_progress_bar=False).tolist()
+    return [vec.tolist() for vec in get_model().embed(texts)]
 
 
 # ── Collection helper ─────────────────────────────────────────────────────────

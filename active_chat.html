@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PaperTrail - Active Conversation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface-bright": "#393841",
+                "tertiary": "#ffb783",
+                "primary-fixed": "#e1e0ff",
+                "on-primary-fixed": "#07006c",
+                "surface": "#13131b",
+                "inverse-primary": "#494bd6",
+                "on-tertiary": "#4f2500",
+                "surface-tint": "#c0c1ff",
+                "secondary-container": "#00a572",
+                "on-primary-container": "#0d0096",
+                "on-surface": "#e4e1ed",
+                "on-secondary-fixed": "#002113",
+                "surface-container-low": "#1b1b23",
+                "secondary-fixed-dim": "#4edea3",
+                "surface-container-lowest": "#0d0d15",
+                "outline": "#908fa0",
+                "surface-dim": "#13131b",
+                "error-container": "#93000a",
+                "on-secondary-container": "#00311f",
+                "primary-container": "#8083ff",
+                "on-error-container": "#ffdad6",
+                "primary-fixed-dim": "#c0c1ff",
+                "on-error": "#690005",
+                "on-background": "#e4e1ed",
+                "inverse-on-surface": "#303038",
+                "tertiary-fixed-dim": "#ffb783",
+                "surface-variant": "#34343d",
+                "secondary-fixed": "#6ffbbe",
+                "tertiary-fixed": "#ffdcc5",
+                "surface-container": "#1f1f27",
+                "on-tertiary-fixed-variant": "#703700",
+                "on-primary": "#1000a9",
+                "on-surface-variant": "#c7c4d7",
+                "surface-container-high": "#292932",
+                "outline-variant": "#464554",
+                "error": "#ffb4ab",
+                "on-secondary": "#003824",
+                "on-secondary-fixed-variant": "#005236",
+                "secondary": "#4edea3",
+                "tertiary-container": "#d97721",
+                "surface-container-highest": "#34343d",
+                "background": "#13131b",
+                "on-tertiary-fixed": "#301400",
+                "primary": "#c0c1ff",
+                "on-primary-fixed-variant": "#2f2ebe",
+                "inverse-surface": "#e4e1ed",
+                "on-tertiary-container": "#452000"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "margin_md": "24px",
+                "margin_sm": "16px",
+                "margin_lg": "40px",
+                "main_max_width": "800px",
+                "header_height": "52px",
+                "sidebar_width": "280px",
+                "gutter": "24px"
+        },
+        "fontFamily": {
+                "headline-md": [
+                        "Inter"
+                ],
+                "display-lg-mobile": [
+                        "Inter"
+                ],
+                "body-base": [
+                        "Inter"
+                ],
+                "label-mono": [
+                        "JetBrains Mono"
+                ],
+                "display-lg": [
+                        "Inter"
+                ],
+                "label-upper": [
+                        "Inter"
+                ],
+                "body-sm": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "500"
+                        }
+                ],
+                "display-lg-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "1.2",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-base": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-mono": [
+                        "12px",
+                        {
+                                "lineHeight": "1.5",
+                                "letterSpacing": "0.02em",
+                                "fontWeight": "500"
+                        }
+                ],
+                "display-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-upper": [
+                        "11px",
+                        {
+                                "lineHeight": "1",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-sm": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "fontWeight": "400"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased h-screen overflow-hidden flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[52px] z-50 border-b border-outline-variant bg-surface/90 backdrop-blur-md flex justify-between items-center px-margin_md text-on-surface font-headline-md text-headline-md">
+<div class="flex items-center gap-2 text-on-surface font-bold">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+            PaperTrail
+        </div>
+<div class="flex items-center gap-4 text-body-sm font-body-sm text-on-surface-variant">
+<span>Model: Llama 3.3 · Groq</span>
+<button class="flex items-center hover:bg-surface-container-high transition-colors p-1 rounded-lg text-secondary">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</button>
+</div>
+</header>
+<div class="flex flex-1 pt-[52px] overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col fixed left-0 top-[52px] h-[calc(100vh-52px)] w-[280px] border-r border-outline-variant bg-surface-container-low py-margin_sm z-40">
+<div class="px-margin_md mb-6">
+<h2 class="text-headline-md font-headline-md text-on-surface mb-1">Research Hub</h2>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Precision Synthesis</p>
+<button class="mt-4 w-full bg-secondary-container text-on-secondary-container hover:bg-secondary transition-colors py-2 px-4 rounded-lg flex justify-center items-center gap-2 text-body-sm font-body-sm font-medium">
+<span class="material-symbols-outlined text-sm">add</span> New Analysis
+                </button>
+</div>
+<div class="flex-1 overflow-y-auto flex flex-col gap-1">
+<a class="flex items-center gap-3 bg-surface-container-highest text-secondary border-l-2 border-secondary px-4 py-3 text-label-upper font-label-upper tracking-wider transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-lg">description</span> Documents
+                </a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 text-label-upper font-label-upper tracking-wider hover:bg-surface-container-high transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-lg">folder_shared</span> Collections
+                </a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 text-label-upper font-label-upper tracking-wider hover:bg-surface-container-high transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-lg">edit_note</span> Annotations
+                </a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 text-label-upper font-label-upper tracking-wider hover:bg-surface-container-high transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-lg">settings</span> Settings
+                </a>
+</div>
+<div class="mt-auto px-2 flex flex-col gap-1 pt-4 border-t border-outline-variant/30">
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-2 text-label-upper font-label-upper tracking-wider hover:bg-surface-container-high transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">help</span> Support
+                </a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-2 text-label-upper font-label-upper tracking-wider hover:bg-surface-container-high transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">archive</span> Archive
+                </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col ml-0 md:ml-[280px] relative w-full h-full bg-background">
+<!-- Chat History -->
+<div class="flex-1 overflow-y-auto p-margin_md pb-32 flex flex-col items-center">
+<div class="w-full max-w-main_max_width flex flex-col gap-8">
+<!-- User Message -->
+<div class="flex justify-end w-full">
+<div class="bg-surface-container-high text-on-surface px-5 py-3 rounded-lg rounded-tr-sm max-w-[85%] border border-outline-variant/20 shadow-sm">
+<p class="text-body-base font-body-base">What is the core advantage of the Transformer architecture?</p>
+</div>
+</div>
+<!-- AI Response -->
+<div class="flex justify-start w-full gap-4">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex-shrink-0 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-secondary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col gap-3 max-w-[90%]">
+<div class="bg-surface-container text-on-surface px-5 py-4 rounded-lg rounded-tl-sm border border-outline-variant shadow-sm">
+<p class="text-body-base font-body-base text-on-surface-variant leading-relaxed">
+                                    The core advantage of the Transformer architecture, as detailed in the seminal paper, lies in its reliance entirely on attention mechanisms to draw global dependencies between input and output. Unlike recurrent neural networks (RNNs) or convolutional neural networks (CNNs), which process data sequentially or hierarchically, Transformers process all tokens simultaneously.
+                                </p>
+<p class="text-body-base font-body-base text-on-surface-variant leading-relaxed mt-3">
+                                    This enables <span class="text-on-surface font-medium">significantly more parallelization</span> during training, leading to faster convergence and the ability to train on vastly larger datasets. Furthermore, the self-attention mechanism allows the model to inherently learn contextual relationships across long distances within the sequence, mitigating the vanishing gradient problem common in earlier sequential models.<span class="inline-block w-2 h-4 bg-secondary ml-1 align-middle cursor-blink"></span>
+</p>
+</div>
+<!-- Citations -->
+<div class="flex flex-col gap-2 mt-1">
+<span class="text-label-upper font-label-upper text-outline tracking-wider">Source Citations</span>
+<div class="flex flex-wrap gap-2">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary-container/10 border-l-2 border-secondary-container text-secondary-container text-label-mono font-label-mono cursor-pointer hover:bg-secondary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[14px]">description</span>
+<span>Attention_is_all_you_need.pdf · Page 1</span>
+</div>
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary-container/10 border-l-2 border-secondary-container text-secondary-container text-label-mono font-label-mono cursor-pointer hover:bg-secondary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[14px]">description</span>
+<span>Attention_is_all_you_need.pdf · Page 4</span>
+</div>
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary-container/10 border-l-2 border-secondary-container text-secondary-container text-label-mono font-label-mono cursor-pointer hover:bg-secondary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[14px]">description</span>
+<span>Attention_is_all_you_need.pdf · Page 6</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Input Area -->
+<div class="absolute bottom-0 left-0 right-0 p-margin_md bg-gradient-to-t from-background via-background to-transparent flex justify-center">
+<div class="w-full max-w-main_max_width relative">
+<div class="absolute -top-10 left-0 flex gap-2">
+<button class="bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant text-on-surface-variant text-label-mono font-label-mono px-3 py-1 rounded-lg text-[10px] transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">tune</span> Adjust Depth
+                        </button>
+<button class="bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant text-on-surface-variant text-label-mono font-label-mono px-3 py-1 rounded-lg text-[10px] transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">summarize</span> Summarize Findings
+                        </button>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg p-2 flex items-end shadow-lg focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/50 transition-all">
+<button class="p-2 text-outline hover:text-secondary transition-colors rounded-lg flex-shrink-0">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<textarea class="w-full bg-transparent border-none text-on-surface text-body-base font-body-base placeholder:text-outline-variant resize-none focus:ring-0 max-h-32 py-2 px-2" placeholder="Ask a follow-up question..." rows="1" style="min-height: 44px;"></textarea>
+<button class="p-2 bg-secondary text-on-secondary hover:bg-secondary-container transition-colors rounded-lg flex-shrink-0 ml-2">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+<div class="text-center mt-2">
+<span class="text-label-mono font-label-mono text-outline-variant text-[10px]">PaperTrail AI uses Llama 3.3. Verify important claims.</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

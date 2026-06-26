@@ -5,7 +5,7 @@
  * so the same build works locally and on Vercel without code changes.
  */
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 // ── Upload ────────────────────────────────────────────────────────────────────
 

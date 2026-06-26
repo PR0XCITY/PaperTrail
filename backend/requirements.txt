@@ -3,7 +3,7 @@ uvicorn[standard]
 python-multipart==0.0.9
 groq
 chromadb
-sentence-transformers
+fastembed
 pymupdf
 langchain-text-splitters
 python-dotenv

@@ -1,10 +1,6 @@
 import { useState, useRef } from "react";
 import { uploadPDF } from "../api/client";
 
-/**
- * PDF upload button with progress bar and status feedback.
- * On success, calls onUploadSuccess({document_id, name, pages, chunks}).
- */
 export default function FileUploader({ onUploadSuccess }) {
   const [status, setStatus] = useState("idle"); // idle | uploading | done | error
   const [progress, setProgress] = useState(0);
@@ -24,7 +20,6 @@ export default function FileUploader({ onUploadSuccess }) {
       setStatus("done");
       onUploadSuccess(result);
       if (fileRef.current) fileRef.current.value = "";
-      // Auto-reset after 3 s so user can upload another
       setTimeout(() => setStatus("idle"), 3000);
     } catch (err) {
       setError(err.message);
@@ -33,14 +28,20 @@ export default function FileUploader({ onUploadSuccess }) {
   }
 
   return (
-    <div className="uploader">
-      <h2 className="uploader-title">Upload PDF</h2>
-
+    <div className="flex flex-col gap-2 mt-4 w-full">
       <label
-        className={`upload-btn ${status === "uploading" ? "upload-btn--busy" : ""}`}
+        className={`w-full py-2 px-4 rounded-lg flex justify-center items-center gap-2 text-body-sm font-body-sm font-medium transition-colors cursor-pointer
+          ${status === "uploading" 
+            ? "bg-surface-container-high text-on-surface-variant cursor-not-allowed" 
+            : "bg-secondary-container text-on-secondary-container hover:bg-secondary"
+          }
+        `}
         htmlFor="pdf-input"
       >
-        {status === "uploading" ? `Indexing… ${progress}%` : "⬆ Choose PDF"}
+        <span className="material-symbols-outlined text-sm">
+          {status === "uploading" ? "hourglass_empty" : "add"}
+        </span> 
+        {status === "uploading" ? `Indexing… ${progress}%` : "New Analysis"}
       </label>
 
       <input
@@ -50,21 +51,25 @@ export default function FileUploader({ onUploadSuccess }) {
         ref={fileRef}
         onChange={handleFileChange}
         disabled={status === "uploading"}
-        style={{ display: "none" }}
+        className="hidden"
       />
 
       {status === "uploading" && (
-        <div className="progress-bar-track">
-          <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+        <div className="h-1 w-full bg-outline-variant/30 rounded-full overflow-hidden">
+          <div className="h-full bg-secondary transition-all" style={{ width: `${progress}%` }} />
         </div>
       )}
 
       {status === "done" && (
-        <p className="upload-success">✓ Document indexed</p>
+        <p className="text-secondary text-label-mono font-label-mono flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">check_circle</span> Document indexed
+        </p>
       )}
 
       {status === "error" && (
-        <p className="upload-error">✗ {error}</p>
+        <p className="text-error text-label-mono font-label-mono flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">error</span> {error}
+        </p>
       )}
     </div>
   );

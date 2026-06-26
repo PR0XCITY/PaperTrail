@@ -34,8 +34,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
   function handleUploadSuccess(result) {
     const newDoc = {
       document_id: result.document_id,
@@ -59,7 +57,6 @@ export default function App() {
       const remaining = documents.filter((d) => d.document_id !== docId);
       setActiveDocumentId(remaining.length > 0 ? remaining[0].document_id : null);
     }
-    // Clean up stored messages for deleted doc
     setMessagesMap((prev) => {
       const next = { ...prev };
       delete next[docId];
@@ -67,7 +64,6 @@ export default function App() {
     });
   }
 
-  // Messages helpers — per session key
   function getMessages(key) {
     return messagesMap[key] ?? [];
   }
@@ -78,75 +74,69 @@ export default function App() {
     }));
   }
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-
   const activeDoc  = documents.find((d) => d.document_id === activeDocumentId);
   const sessionKey = searchAll ? "__all__" : (activeDocumentId ?? "__none__");
   const sessionId  = getSessionId(sessionKey);
   const canChat    = searchAll || !!activeDocumentId;
 
   return (
-    <div className="app-layout">
-      {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <span className="logo-icon">📄</span>
-          <span className="logo-text">PaperTrail</span>
+    <div className="bg-background text-on-surface font-body-base antialiased h-screen overflow-hidden flex flex-col">
+      {/* TopAppBar */}
+      <header className="fixed top-0 w-full h-[52px] z-50 border-b border-outline-variant bg-surface/90 backdrop-blur-md flex justify-between items-center px-margin_md text-on-surface font-headline-md text-headline-md">
+        <div className="flex items-center gap-2 text-on-surface font-bold">
+          <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>menu_book</span>
+          PaperTrail
         </div>
-        <p className="tagline">Upload a PDF. Ask anything.</p>
+        <div className="flex items-center gap-4 text-body-sm font-body-sm text-on-surface-variant">
+          <span>Model: Llama 3.3 · Groq</span>
+          <button className="flex items-center hover:bg-surface-container-high transition-colors p-1 rounded-lg text-secondary">
+            <span className="material-symbols-outlined text-xl">account_circle</span>
+          </button>
+        </div>
+      </header>
 
-        <FileUploader onUploadSuccess={handleUploadSuccess} />
-
-        {documents.length > 0 && (
-          <DocumentList
-            documents={documents}
-            activeDocumentId={activeDocumentId}
-            onSelect={handleSelectDocument}
-            onDelete={handleDeleteDocument}
-            searchAll={searchAll}
-            onSearchAllChange={setSearchAll}
-          />
-        )}
-      </aside>
-
-      {/* ── Main Chat ─────────────────────────────────────────── */}
-      <main className="chat-area">
-        <header className="chat-area-header">
-          <h1 className="chat-area-title">Chat</h1>
-          <div className="chat-context">
-            {searchAll ? (
-              <span className="context-badge context-badge--all">
-                🔍 Searching all {documents.length} document{documents.length !== 1 ? "s" : ""}
-              </span>
-            ) : activeDoc ? (
-              <span className="context-badge context-badge--doc">
-                <span className="context-pulse" />
-                {activeDoc.name}
-              </span>
-            ) : (
-              <span className="context-badge context-badge--none">No document selected</span>
-            )}
+      <div className="flex flex-1 pt-[52px] overflow-hidden">
+        {/* SideNavBar */}
+        <nav className="hidden md:flex flex-col fixed left-0 top-[52px] h-[calc(100vh-52px)] w-[280px] border-r border-outline-variant bg-surface-container-low py-margin_sm z-40">
+          <div className="px-margin_md mb-6">
+            <h2 className="text-headline-md font-headline-md text-on-surface mb-1">Research Hub</h2>
+            <p className="text-body-sm font-body-sm text-on-surface-variant">Precision Synthesis</p>
+            <FileUploader onUploadSuccess={handleUploadSuccess} />
           </div>
-        </header>
 
-        {canChat ? (
-          <ChatWindow
-            activeDocumentId={searchAll ? null : activeDocumentId}
-            sessionId={sessionId}
-            searchAll={searchAll}
-            messages={getMessages(sessionKey)}
-            onMessagesChange={(updater) => setMessages(sessionKey, updater)}
-          />
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">📂</div>
-            <h2 className="empty-state-title">No document selected</h2>
-            <p className="empty-state-body">
-              Upload a PDF in the sidebar to start asking questions about it.
-            </p>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-1">
+            <DocumentList
+              documents={documents}
+              activeDocumentId={activeDocumentId}
+              onSelect={handleSelectDocument}
+              onDelete={handleDeleteDocument}
+              searchAll={searchAll}
+              onSearchAllChange={setSearchAll}
+            />
           </div>
-        )}
-      </main>
+        </nav>
+
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col ml-0 md:ml-[280px] relative w-full h-full bg-background">
+          {canChat ? (
+            <ChatWindow
+              activeDocumentId={searchAll ? null : activeDocumentId}
+              sessionId={sessionId}
+              searchAll={searchAll}
+              messages={getMessages(sessionKey)}
+              onMessagesChange={(updater) => setMessages(sessionKey, updater)}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-10 text-on-surface-variant text-center">
+              <span className="material-symbols-outlined text-[48px] opacity-30 mb-4">folder_open</span>
+              <h2 className="text-headline-md font-headline-md text-on-surface mb-2">No document selected</h2>
+              <p className="text-body-base max-w-[340px]">
+                Upload a PDF in the sidebar to start asking questions about it.
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
