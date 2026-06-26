@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FileUploader from "./components/FileUploader";
 import ChatWindow from "./components/ChatWindow";
+import { startKeepAlive } from "./utils/keepAlive";
 
 export default function App() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [hasUpload, setHasUpload] = useState(false);
+
+  useEffect(() => {
+    startKeepAlive();
+  }, []);
 
   function handleUploadSuccess(info, filename) {
     setHasUpload(true);

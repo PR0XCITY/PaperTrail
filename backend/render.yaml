@@ -1,13 +1,16 @@
 services:
   - type: web
-    name: papertrail-api
-    runtime: python
+    name: papertrail-backend
+    env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-keep-alive 120
     envVars:
       - key: GROQ_API_KEY
         sync: false
-      - key: TOKENIZERS_PARALLELISM
-        value: "false"
-      - key: CUDA_VISIBLE_DEVICES
-        value: ""
+      - key: SENTENCE_TRANSFORMERS_HOME
+        value: /tmp/st_cache
+      - key: TRANSFORMERS_CACHE
+        value: /tmp/hf_cache
+      - key: PYTHONUNBUFFERED
+        value: "1"

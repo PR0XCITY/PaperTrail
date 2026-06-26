@@ -1,4 +1,11 @@
+import os
 import hashlib
+
+# Set cache directories before any model-related imports so that
+# sentence-transformers and HuggingFace write to /tmp (writable on Render free tier)
+# and nothing is downloaded at import time.
+os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", "/tmp/st_cache")
+os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/hf_cache")
 
 from app.config import EMBED_MODEL
 from app.config import CHROMA_DIR
@@ -8,34 +15,36 @@ from app.config import CHROMA_DIR
 # client (~50 MB) are only instantiated when the first request needs them.
 
 _model = None
-_chroma = None
+_client = None
 
 
-def _get_model():
+def get_model():
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
+        print("Loading embedding model...")
         _model = SentenceTransformer(EMBED_MODEL)
+        print("Embedding model loaded")
     return _model
 
 
-def _get_chroma():
-    global _chroma
-    if _chroma is None:
+def get_client():
+    global _client
+    if _client is None:
         import chromadb
-        _chroma = chromadb.PersistentClient(path=CHROMA_DIR)
-    return _chroma
+        _client = chromadb.PersistentClient(path=CHROMA_DIR)
+    return _client
 
 
 def emb(t):
-    return _get_model().encode(
+    return get_model().encode(
         t,
         show_progress_bar=False
     ).tolist()
 
 
 def get_col(n):
-    return _get_chroma().get_or_create_collection(
+    return get_client().get_or_create_collection(
         name=n
     )
 
